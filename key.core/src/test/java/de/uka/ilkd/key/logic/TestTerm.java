@@ -3,16 +3,24 @@
  * SPDX-License-Identifier: GPL-2.0-only */
 package de.uka.ilkd.key.logic;
 
+import java.util.Arrays;
+
 import de.uka.ilkd.key.java.StatementBlock;
 import de.uka.ilkd.key.java.declaration.LocalVariableDeclaration;
+import de.uka.ilkd.key.logic.label.OriginTermLabelFactory;
+import de.uka.ilkd.key.logic.label.ParameterlessTermLabel;
+import de.uka.ilkd.key.logic.label.TermLabel;
+import de.uka.ilkd.key.logic.label.TermLabelException;
 import de.uka.ilkd.key.logic.op.*;
 import de.uka.ilkd.key.logic.sort.Sort;
 import de.uka.ilkd.key.logic.sort.SortImpl;
 import de.uka.ilkd.key.rule.TacletForTests;
+import de.uka.ilkd.key.util.HelperClassForTests;
 
 import org.key_project.util.collection.ImmutableArray;
 import org.key_project.util.collection.ImmutableSLList;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -199,5 +207,114 @@ public class TestTerm {
         assertTrue(withJB.containsJavaBlockRecursive());
         assertTrue(withJBChild.containsJavaBlockRecursive());
         assertTrue(withJBChildChild.containsJavaBlockRecursive());
+    }
+
+    final private TermLabel relevantLabel1 = ParameterlessTermLabel.UNDEFINED_VALUE_LABEL;
+    final private TermLabel relevantLabel2 = ParameterlessTermLabel.SHORTCUT_EVALUATION_LABEL;
+    private static TermLabel irrelevantLabel1 = null;
+    private static TermLabel irrelevantLabel2 = null;
+    final private static OriginTermLabelFactory factory = new OriginTermLabelFactory();
+
+    @BeforeAll
+    public static void setIrrelevantLabel() {
+        try {
+            irrelevantLabel1 = factory.parseInstance(Arrays.stream(new String[] {
+                "User_Interaction @ node 0 (Test Test)", "[]" }).toList(),
+                HelperClassForTests.createServices());
+            irrelevantLabel2 = factory.parseInstance(Arrays.stream(new String[] {
+                "User_Interaction @ node 1 (Test Test)", "[]" }).toList(),
+                HelperClassForTests.createServices());
+        } catch (TermLabelException e) {
+            fail(e);
+        }
+    }
+
+    @Test
+    public void proofIrrelevancy() {
+        // ------------ different terms to begin with
+        Term term1 =
+            tf.createTerm(Junctor.AND, tf.createTerm(Junctor.TRUE), tf.createTerm(Junctor.FALSE));
+        Term term2 =
+            tf.createTerm(Junctor.AND, tf.createTerm(Junctor.TRUE), tf.createTerm(Junctor.TRUE));
+        assertFalse(term1.equalsModProofIrrelevancy(term2),
+            "Terms are different to begin with, so they shouldn't be equal");
+        assertFalse(term2.equalsModProofIrrelevancy(term1),
+            "Terms are different to begin with, so they shouldn't be equal");
+
+        // ------------ comparison with something that is not a term
+        assertFalse(term1.equalsModProofIrrelevancy(1),
+            "Should be false as other object is not a term");
+
+        // base terms stay the same for the rest of the tests
+        term1 =
+            tf.createTerm(Junctor.AND, tf.createTerm(Junctor.TRUE), tf.createTerm(Junctor.FALSE));
+        term2 =
+            tf.createTerm(Junctor.AND, tf.createTerm(Junctor.TRUE), tf.createTerm(Junctor.FALSE));
+
+        // ------------ only one term has labels
+        ImmutableArray<TermLabel> labels1 =
+            new ImmutableArray<>(relevantLabel1, irrelevantLabel1);
+        term1 = tb.label(term1, labels1);
+        assertFalse(term1.equalsModProofIrrelevancy(term2),
+            "Should be false as term1 has a proof relevant term label, but term2 does not have any labels");
+        assertFalse(term2.equalsModProofIrrelevancy(term1),
+            "Should be false as term1 has a proof relevant term label, but term2 does not have any labels");
+
+        // TODO: ask during the meeting whether this behaviour is expected (here terms are equal as
+        // term2 is not labeled)
+        labels1 = new ImmutableArray<>(irrelevantLabel1);
+        term1 = tb.label(term1, labels1);
+        assertTrue(term1.equalsModProofIrrelevancy(term2),
+            "Should be true as term1 has no relevant term labels and term2 does not have any labels");
+        assertTrue(term2.equalsModProofIrrelevancy(term1),
+            "Should be true as term1 has no relevant term labels and term2 does not have any labels");
+
+
+        assertEquals(term1.hashCodeModProofIrrelevancy(), term2.hashCodeModProofIrrelevancy());
+
+        // ------------ same relevant labels
+        labels1 = new ImmutableArray<>(relevantLabel1, relevantLabel2, irrelevantLabel1);
+        ImmutableArray<TermLabel> labels2 =
+            new ImmutableArray<>(relevantLabel1, relevantLabel2, irrelevantLabel1);
+        term1 = tb.label(term1, labels1);
+        term2 = tb.label(term2, labels2);
+        assertTrue(term1.equalsModProofIrrelevancy(term2),
+            "Should be true as both terms have the same relevant term labels");
+        assertTrue(term2.equalsModProofIrrelevancy(term1),
+            "Should be true as both terms have the same relevant term labels");
+
+
+        labels1 = new ImmutableArray<>(relevantLabel1, relevantLabel2, irrelevantLabel1);
+        labels2 = new ImmutableArray<>(relevantLabel1, relevantLabel2, irrelevantLabel2);
+        term1 = tb.label(term1, labels1);
+        term2 = tb.label(term2, labels2);
+        assertTrue(term1.equalsModProofIrrelevancy(term2),
+            "Should be true as both terms have the same relevant term labels");
+        assertTrue(term2.equalsModProofIrrelevancy(term1),
+            "Should be true as both terms have the same relevant term labels");
+
+        // should be true as only relevant labels are added to the hash code
+        assertEquals(term1.hashCodeModProofIrrelevancy(), term2.hashCodeModProofIrrelevancy());
+
+        // TODO: ask during the meeting whether this behaviour is expected (here terms are not equal
+        // as term2 is labeled)
+        labels1 = new ImmutableArray<>(relevantLabel1, relevantLabel2, irrelevantLabel1);
+        labels2 = new ImmutableArray<>(relevantLabel1, relevantLabel2);
+        term1 = tb.label(term1, labels1);
+        term2 = tb.label(term2, labels2);
+        assertFalse(term1.equalsModProofIrrelevancy(term2),
+            "Should be false as both terms have a different number of labels");
+        assertFalse(term2.equalsModProofIrrelevancy(term1),
+            "Should be false as both terms have a different number of labels");
+
+        // ------------ not the same relevant labels
+        labels1 = new ImmutableArray<>(relevantLabel1);
+        labels2 = new ImmutableArray<>(relevantLabel2);
+        term1 = tb.label(term1, labels1);
+        term2 = tb.label(term2, labels2);
+        assertFalse(term1.equalsModProofIrrelevancy(term2),
+            "Should be false as terms do not have the same relevant term labels");
+        assertFalse(term2.equalsModProofIrrelevancy(term1),
+            "Should be false as terms do not have the same relevant term labels");
     }
 }
