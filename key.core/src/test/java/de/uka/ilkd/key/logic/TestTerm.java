@@ -307,6 +307,17 @@ public class TestTerm {
         assertFalse(term2.equalsModProofIrrelevancy(term1),
             "Should be false as both terms have a different number of labels");
 
+        labels1 = new ImmutableArray<>(irrelevantLabel1, irrelevantLabel2);
+        labels2 = new ImmutableArray<>(irrelevantLabel1);
+        term1 = tb.label(term1, labels1);
+        term2 = tb.label(term2, labels2);
+        assertFalse(term1.equalsModProofIrrelevancy(term2),
+            "Should be false as both terms have a different number of labels");
+        assertFalse(term2.equalsModProofIrrelevancy(term1),
+            "Should be false as both terms have a different number of labels");
+
+
+
         // ------------ not the same relevant labels
         labels1 = new ImmutableArray<>(relevantLabel1);
         labels2 = new ImmutableArray<>(relevantLabel2);
