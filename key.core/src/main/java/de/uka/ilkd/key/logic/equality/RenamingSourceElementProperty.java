@@ -10,7 +10,9 @@ import de.uka.ilkd.key.java.NameAbstractionTable;
 import de.uka.ilkd.key.java.SourceElement;
 import de.uka.ilkd.key.java.declaration.VariableSpecification;
 import de.uka.ilkd.key.java.statement.LabeledStatement;
+import de.uka.ilkd.key.java.statement.TransactionStatement;
 import de.uka.ilkd.key.logic.ProgramElementName;
+import de.uka.ilkd.key.logic.op.ProgramMethod;
 import de.uka.ilkd.key.logic.op.ProgramVariable;
 
 import org.key_project.logic.SyntaxElement;
@@ -84,6 +86,10 @@ public class RenamingSourceElementProperty implements Property<SourceElement> {
                 }
             } else if (next1 instanceof ProgramVariable || next1 instanceof ProgramElementName) {
                 if (!handleProgramVariableOrElementName(next1, next2, nat)) {
+                    return false;
+                }
+            } else if (next1 instanceof ProgramMethod || next1 instanceof TransactionStatement) {
+                if (!handleStandard(next1, next2)) {
                     return false;
                 }
             } else if (next1 instanceof JavaNonTerminalProgramElement jnte) {
